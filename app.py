@@ -482,9 +482,9 @@ footer{background:var(--bg);border-top:1px solid var(--b1);padding:32px 24px;tex
   <div class="chat-wrap">
     <div class="chat-top">
       <div class="chat-top-l">
-        <div class="chat-top-icon">🤖</div>
+        <div class="chat-top-icon" id="chat-top-icon">🤖</div>
         <div>
-          <div class="chat-top-name">AI Assistant</div>
+         <div class="chat-top-name" id="chat-top-name">AI Assistant</div>
           <div class="chat-top-sub" id="active-agent">Orchestrated · All 5 agents ready</div>
         </div>
       </div>
