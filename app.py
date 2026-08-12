@@ -467,11 +467,12 @@ footer{background:var(--bg);border-top:1px solid var(--b1);padding:32px 24px;tex
 
 <!-- AGENT CHIPS -->
 <div class="agent-strip">
-  <div class="achip" onclick="quickAgent(1,'What is anxiety and what are its symptoms?')"><div class="achip-dot"></div><span class="achip-name">🧠 Awareness</span></div>
-  <div class="achip" onclick="quickAgent(2,'I have been feeling really overwhelmed and sad lately')"><div class="achip-dot"></div><span class="achip-name">💙 Support</span></div>
-  <div class="achip" onclick="quickAgent(3,'I feel hopeless and like nothing will ever improve')"><div class="achip-dot"></div><span class="achip-name">🔍 Distress</span></div>
-  <div class="achip" onclick="quickAgent(4,'What coping strategies can help with anxiety?')"><div class="achip-dot"></div><span class="achip-name">🌱 Coping</span></div>
-  <div class="achip" onclick="quickAgent(5,'What professional resources are available for mental health support?')"><div class="achip-dot"></div><span class="achip-name">🏥 Resources</span></div>
+  <div class="achip active" id="ac0" onclick="switchAgent(0)"><div class="achip-dot" style="background:#f0f6fc"></div><span class="achip-name">🤖 All Agents</span></div>
+  <div class="achip" id="ac1" onclick="switchAgent(1)"><div class="achip-dot"></div><span class="achip-name">🧠 Awareness</span></div>
+  <div class="achip" id="ac2" onclick="switchAgent(2)"><div class="achip-dot"></div><span class="achip-name">💙 Support</span></div>
+  <div class="achip" id="ac3" onclick="switchAgent(3)"><div class="achip-dot"></div><span class="achip-name">🔍 Distress Check</span></div>
+  <div class="achip" id="ac4" onclick="switchAgent(4)"><div class="achip-dot"></div><span class="achip-name">🌱 Coping</span></div>
+  <div class="achip" id="ac5" onclick="switchAgent(5)"><div class="achip-dot"></div><span class="achip-name">🏥 Resources</span></div>
 </div>
 
 <!-- MAIN LAYOUT -->
@@ -581,98 +582,251 @@ footer{background:var(--bg);border-top:1px solid var(--b1);padding:32px 24px;tex
 </footer>
 
 <script>
-const S={msgs:0,agents:0,peakTier:0,ctx:[]};
-const e=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br/>');
-const t=()=>new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-function ar(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,100)+'px'}
-function hk(ev){if(ev.key==='Enter'&&!ev.shiftKey){ev.preventDefault();send()}}
-function qs(txt){document.getElementById('inp').value=txt;ar(document.getElementById('inp'));send()}
-function quickAgent(id,txt){document.querySelectorAll('.achip').forEach((c,i)=>c.classList.toggle('active',i===id-1));qs(txt)}
+/* ── Agent personas ── */
+const AGENTS = {
+  0: { name:'All Agents',       sub:'Orchestrated · All 5 agents ready',       icon:'🤖', color:'#f0f6fc',
+       greeting:"Hi! I'm your Mental Health AI Companion, powered by IBM Granite. All five specialized agents are standing by.\n\nYou can talk to me about anything — mental health topics, how you're feeling, coping strategies, or getting professional help. What's on your mind today?",
+       placeholder:"Ask me anything about mental health…" },
+  1: { name:'Awareness Agent',  sub:'Mental Health Awareness · IBM Granite',    icon:'🧠', color:'#0f62fe',
+       greeting:"Hello! I'm your Mental Health Awareness Agent, powered by IBM Granite 🧠\n\nI'm here to help you understand mental health topics clearly and compassionately — things like anxiety, depression, stress, burnout, mindfulness, and more.\n\nWhat would you like to learn about today?",
+       placeholder:"Ask about anxiety, depression, burnout, mindfulness…" },
+  2: { name:'Support Agent',    sub:'Emotional Support · Active Listening',     icon:'💙', color:'#8a3ffc',
+       greeting:"Hey, I'm really glad you're here 💙\n\nI'm your Emotional Support Agent. This is a completely safe, judgment-free space. You don't have to explain yourself or have the right words — just share what's going on, and I'll listen.\n\nHow are you feeling right now?",
+       placeholder:"Share how you're feeling, I'm listening…" },
+  3: { name:'Distress Check',   sub:'Crisis Detection · Safety First',          icon:'🔍', color:'#009d9a',
+       greeting:"Hi, I'm here with you 🔍\n\nI'm the Distress Detection Agent. My job is to check in with you and make sure you're safe and supported.\n\nSometimes things get really hard and it helps to talk. You can be completely honest with me — nothing you say will be judged.\n\nHow are you doing today, really?",
+       placeholder:"Tell me honestly how you're doing…" },
+  4: { name:'Coping Agent',     sub:'Coping Strategies · Evidence-Based',       icon:'🌱', color:'#24a148',
+       greeting:"Hi there! I'm your Coping Strategy Agent 🌱\n\nI'm powered by IBM Granite and I specialise in practical, evidence-based techniques to help you manage stress, anxiety, low mood, and difficult emotions.\n\nTell me what you're currently struggling with and I'll suggest strategies that actually work.",
+       placeholder:"Tell me what you're struggling with…" },
+  5: { name:'Resources Agent',  sub:'Professional Support · Risk Assessment',   icon:'🏥', color:'#ff832b',
+       greeting:"Hello! I'm your Professional Resources Agent 🏥\n\nI can help you find the right mental health support — whether that's crisis hotlines, therapists, online counselling, or wellness apps.\n\nTell me a bit about what you're going through and I'll point you toward the most helpful resources.",
+       placeholder:"Tell me what kind of support you need…" },
+};
 
-function addMsg(role,text,meta={}){
-  const c=document.getElementById('msgs');
-  const d=document.createElement('div');
-  d.className='msg '+(role==='user'?'user':'bot');
-  const icon=role==='user'?'👤':(meta.icon||'🤖');
-  const riskHtml=meta.risk&&role!=='user'?`<span class="risk-tag ${meta.risk}" style="margin-left:6px">${meta.risk.toUpperCase()}</span>`:'';
-  d.innerHTML=`<div class="avatar">${icon}</div><div><div class="bubble">${e(text)}</div><div class="msg-meta"><span>${t()}</span>${meta.agent?`<span class="agent-chip">${e(meta.agent)}</span>`:''} ${riskHtml}</div></div>`;
-  c.appendChild(d);c.scrollTop=c.scrollHeight;
+const S = { msgs:0, agents:0, peakTier:0, ctx:[], activeAgent:0, busy:false };
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br/>');
+const now = () => new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+
+/* ── Resize textarea ── */
+function ar(el){ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,100)+'px'; }
+function hk(ev){ if(ev.key==='Enter'&&!ev.shiftKey){ ev.preventDefault(); send(); } }
+
+/* ── Switch active agent ── */
+function switchAgent(id) {
+  if(S.busy) return;
+  S.activeAgent = id;
+  S.ctx = []; // fresh context per agent
+  const a = AGENTS[id];
+
+  // highlight chip
+  document.querySelectorAll('.achip').forEach(c => c.classList.remove('active'));
+  const chip = document.getElementById('ac'+id);
+  if(chip) chip.classList.add('active');
+
+  // update header
+  document.getElementById('chat-top-icon').textContent = a.icon;
+  document.getElementById('chat-top-icon').style.background = `linear-gradient(135deg, ${a.color}99, ${a.color}44)`;
+  document.getElementById('chat-top-name').textContent = a.name;
+  document.getElementById('active-agent').textContent  = a.sub;
+  document.getElementById('inp').placeholder = a.placeholder;
+
+  // clear messages and show greeting with typewriter
+  const msgs = document.getElementById('msgs');
+  msgs.innerHTML = '';
+  typewriterMsg(a.icon, a.greeting, a.name);
 }
 
-function showTyping(){
-  const c=document.getElementById('msgs');
-  const d=document.createElement('div');
-  d.id='typing';d.className='msg bot';
-  d.innerHTML='<div class="avatar">🤖</div><div class="typing-bubble"><span></span><span></span><span></span></div>';
-  c.appendChild(d);c.scrollTop=c.scrollHeight;
-}
-function hideTyping(){const t=document.getElementById('typing');if(t)t.remove()}
+/* ── Typewriter effect for bot messages ── */
+function typewriterMsg(icon, fullText, agentName) {
+  const msgs = document.getElementById('msgs');
+  const wrapper = document.createElement('div');
+  wrapper.className = 'msg bot';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  const meta = document.createElement('div');
+  meta.className = 'msg-meta';
+  meta.innerHTML = `<span>${now()}</span><span class="agent-chip">${esc(agentName)}</span>`;
+  const inner = document.createElement('div');
+  wrapper.innerHTML = `<div class="avatar">${icon}</div>`;
+  wrapper.appendChild(Object.assign(document.createElement('div'), {
+    innerHTML: ''
+  }));
+  wrapper.lastChild.appendChild(bubble);
+  wrapper.lastChild.appendChild(meta);
+  msgs.appendChild(wrapper);
 
-function animatePipe(agents){
+  // Stream text character by character (fast)
+  const lines = fullText.split('\n');
+  let lineIdx=0, charIdx=0;
+  let displayed = '';
+  function step() {
+    if(lineIdx >= lines.length){ msgs.scrollTop=msgs.scrollHeight; return; }
+    const line = lines[lineIdx];
+    if(charIdx < line.length){
+      displayed += esc(line[charIdx]);
+      charIdx++;
+      bubble.innerHTML = displayed.replace(/\n/g,'<br/>');
+      msgs.scrollTop = msgs.scrollHeight;
+      setTimeout(step, 8); // fast typewriter
+    } else {
+      displayed += '<br/>';
+      lineIdx++; charIdx=0;
+      bubble.innerHTML = displayed;
+      msgs.scrollTop = msgs.scrollHeight;
+      setTimeout(step, charIdx===0&&line===''?30:50);
+    }
+  }
+  step();
+}
+
+/* ── Add a message bubble instantly ── */
+function addMsg(role, text, meta={}) {
+  const msgs = document.getElementById('msgs');
+  const d = document.createElement('div');
+  d.className = 'msg ' + (role==='user' ? 'user' : 'bot');
+  const icon = role==='user' ? '👤' : (meta.icon || AGENTS[S.activeAgent].icon);
+  const riskHtml = meta.risk && role!=='user'
+    ? `<span class="risk-tag ${meta.risk}" style="margin-left:6px">${meta.risk.toUpperCase()}</span>` : '';
+  d.innerHTML = `<div class="avatar">${icon}</div><div>
+    <div class="bubble">${esc(text)}</div>
+    <div class="msg-meta"><span>${now()}</span>
+      ${meta.agent?`<span class="agent-chip">${esc(meta.agent)}</span>`:''}
+      ${riskHtml}
+    </div></div>`;
+  msgs.appendChild(d);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+/* ── Typing indicator ── */
+function showTyping() {
+  const msgs = document.getElementById('msgs');
+  const d = document.createElement('div');
+  d.id='typing'; d.className='msg bot';
+  const icon = AGENTS[S.activeAgent].icon;
+  d.innerHTML=`<div class="avatar">${icon}</div><div class="typing-bubble"><span></span><span></span><span></span></div>`;
+  msgs.appendChild(d); msgs.scrollTop=msgs.scrollHeight;
+}
+function hideTyping(){ const t=document.getElementById('typing'); if(t) t.remove(); }
+
+/* ── Pipeline animation ── */
+function animatePipe(agents) {
   const m={'Awareness':'p1','Emotional Support':'p2','Distress Detection':'p3','Coping Strategy':'p4','Risk & Resources':'p5'};
-  ['p1','p2','p3','p4','p5'].forEach(id=>{const el=document.getElementById(id);el.classList.remove('active','done')});
-  let d=0;agents.forEach(a=>{const id=m[a];if(!id)return;
-    setTimeout(()=>{document.getElementById(id).classList.add('active')},d);
-    setTimeout(()=>{const el=document.getElementById(id);el.classList.remove('active');el.classList.add('done')},d+700);
-    d+=350;
+  ['p1','p2','p3','p4','p5'].forEach(id=>{document.getElementById(id).classList.remove('active','done')});
+  let delay=0;
+  agents.forEach(a=>{
+    const id=m[a]; if(!id) return;
+    setTimeout(()=>document.getElementById(id).classList.add('active'), delay);
+    setTimeout(()=>{ document.getElementById(id).classList.remove('active'); document.getElementById(id).classList.add('done'); }, delay+600);
+    delay+=300;
   });
 }
 
-function updateGauge(level,tier){
+/* ── Risk gauge ── */
+function updateGauge(level, tier) {
   const colors={low:'#3fb950',moderate:'#e3b341',high:'#ffa657',critical:'#f85149'};
   const scores={low:12,moderate:40,high:68,critical:92};
-  const sc=scores[level]||0;
-  const color=colors[level]||'#374151';
-  const circ=276.46;
-  const offset=circ-(sc/100)*circ;
+  const sc=scores[level]||0, color=colors[level]||'#374151', circ=276.46;
   const arc=document.getElementById('gauge-arc');
-  arc.style.strokeDashoffset=offset;arc.style.stroke=color;
-  document.getElementById('gauge-num').textContent=sc||'—';
-  document.getElementById('gauge-num').setAttribute('fill',sc?color:'#f0f6fc');
+  arc.style.strokeDashoffset = circ-(sc/100)*circ;
+  arc.style.stroke = color;
+  document.getElementById('gauge-num').textContent = sc||'—';
+  document.getElementById('gauge-num').setAttribute('fill', sc?color:'#f0f6fc');
   const cats={low:'Low Risk',moderate:'Moderate',high:'High Risk',critical:'Critical'};
-  const cat=document.getElementById('gauge-cat');
-  cat.textContent=cats[level]||'—';cat.style.color=color;
+  const catEl=document.getElementById('gauge-cat');
+  catEl.textContent=cats[level]||'—'; catEl.style.color=color;
   const notes={low:'No immediate concern',moderate:'Monitor & consider support',high:'Seek professional help soon',critical:'⚠️ Immediate help needed'};
-  document.getElementById('gauge-note').textContent=notes[level]||'';
-  if(tier>S.peakTier){S.peakTier=tier;const el=document.getElementById('s-peak');el.textContent=cats[level]||'Low';el.className='stat-v '+(tier===0?'green':tier===1?'yellow':'red')}
+  document.getElementById('gauge-note').textContent = notes[level]||'';
+  if(tier>S.peakTier){ S.peakTier=tier; const el=document.getElementById('s-peak'); el.textContent=cats[level]||'Low'; el.className='stat-v '+(tier===0?'green':tier===1?'yellow':'red'); }
 }
 
-function showAlerts(flags){
-  const el=document.getElementById('alerts');
-  el.innerHTML=flags.map(f=>`<div class="alert-item">${e(f)}</div>`).join('');
+/* ── Show alerts ── */
+function showAlerts(flags) {
+  document.getElementById('alerts').innerHTML = flags.map(f=>`<div class="alert-item">${esc(f)}</div>`).join('');
 }
 
-function showResources(resources){
-  if(!resources||!resources.length)return;
+/* ── Show resources ── */
+function showResources(resources) {
+  if(!resources||!resources.length) return;
   document.getElementById('res-card').style.display='block';
-  document.getElementById('res-list').innerHTML=resources.map(r=>`<div class="res-item"><div class="res-name">${e(r.name)}</div><div class="res-contact">${e(r.contact)}</div><span class="res-type">${e(r.type)}</span></div>`).join('');
+  document.getElementById('res-list').innerHTML = resources.map(r=>`
+    <div class="res-item">
+      <div class="res-name">${esc(r.name)}</div>
+      <div class="res-contact">${esc(r.contact)}</div>
+      <span class="res-type">${esc(r.type)}</span>
+    </div>`).join('');
 }
 
-async function send(){
-  const inp=document.getElementById('inp');
-  const btn=document.getElementById('sbtn');
-  const text=inp.value.trim();if(!text)return;
-  addMsg('user',text);inp.value='';inp.style.height='auto';btn.disabled=true;
-  S.msgs++;document.getElementById('s-msgs').textContent=S.msgs;
+/* ── SEND ── */
+async function send() {
+  if(S.busy) return;
+  const inp = document.getElementById('inp');
+  const btn = document.getElementById('sbtn');
+  const text = inp.value.trim();
+  if(!text) return;
+
+  addMsg('user', text);
+  inp.value=''; inp.style.height='auto';
+  btn.disabled=true; S.busy=true;
+  S.msgs++; document.getElementById('s-msgs').textContent=S.msgs;
   showTyping();
-  try{
-    const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text,context:S.ctx})});
-    const d=await r.json();hideTyping();
-    if(d.error){addMsg('bot','⚠️ '+d.error);return}
-    addMsg('bot',d.primary_response,{icon:d.primary_icon,agent:d.primary_agent,risk:d.risk_level});
-    animatePipe(d.agents_activated||[]);
-    updateGauge(d.risk_level||'low',d.distress_tier||0);
-    showAlerts(d.alert_flags||[]);
-    if(d.show_resources&&d.all_results?.risk)showResources(d.all_results.risk.resources);
-    const res=d.all_results||{};
-    if(d.distress_tier>=1&&res.coping)setTimeout(()=>addMsg('bot',res.coping.response,{icon:'🌱',agent:'Coping Strategy Agent'}),500);
-    if(d.distress_tier>=2&&res.risk)setTimeout(()=>addMsg('bot',res.risk.response,{icon:'🏥',agent:'Risk & Resources Agent'}),1000);
-    S.ctx.push({user:text,agent:d.primary_response});if(S.ctx.length>10)S.ctx.shift();
-    S.agents+=(d.agents_activated||[]).length;document.getElementById('s-agents').textContent=S.agents;
-    document.getElementById('active-agent').textContent=d.primary_agent||'Orchestrated';
-  }catch(err){hideTyping();addMsg('bot','⚠️ Connection error. Check watsonx.ai credentials.');console.error(err)}
-  btn.disabled=false;inp.focus();
+
+  try {
+    // If a specific agent is selected (1-5), call that agent directly
+    const endpoint = S.activeAgent > 0 ? `/api/agent/${S.activeAgent}` : '/api/chat';
+    const body = S.activeAgent > 0
+      ? JSON.stringify({message:text})
+      : JSON.stringify({message:text, context:S.ctx});
+
+    const r = await fetch(endpoint, {method:'POST', headers:{'Content-Type':'application/json'}, body});
+    const d = await r.json();
+    hideTyping();
+
+    if(d.error){ addMsg('bot','⚠️ '+d.error); return; }
+
+    // For orchestrated mode
+    if(S.activeAgent === 0) {
+      addMsg('bot', d.primary_response, {icon:d.primary_icon, agent:d.primary_agent, risk:d.risk_level});
+      animatePipe(d.agents_activated||[]);
+      updateGauge(d.risk_level||'low', d.distress_tier||0);
+      showAlerts(d.alert_flags||[]);
+      if(d.show_resources && d.all_results?.risk) showResources(d.all_results.risk.resources);
+      // Show coping/risk follow-up only for elevated distress
+      const res = d.all_results||{};
+      if(d.distress_tier>=2 && res.coping)
+        setTimeout(()=>addMsg('bot', res.coping.response, {icon:'🌱', agent:'Coping Strategy Agent'}), 400);
+      if(d.distress_tier>=2 && res.risk)
+        setTimeout(()=>addMsg('bot', res.risk.response, {icon:'🏥', agent:'Risk & Resources Agent'}), 800);
+      S.ctx.push({user:text, agent:d.primary_response});
+      if(S.ctx.length>10) S.ctx.shift();
+      S.agents += (d.agents_activated||[]).length;
+      document.getElementById('s-agents').textContent = S.agents;
+    } else {
+      // Single agent mode — just show the response naturally
+      const a = AGENTS[S.activeAgent];
+      addMsg('bot', d.response, {icon:a.icon, agent:a.name, risk:d.risk_level});
+      animatePipe(['Distress Detection', ['Awareness','Emotional Support','Distress Detection','Coping Strategy','Risk & Resources'][S.activeAgent-1]]);
+      updateGauge(d.risk_level||'low', d.risk_tier||0);
+      showAlerts(d.alert_flags||[]);
+      if(d.resources) showResources(d.resources);
+      S.agents++;
+      document.getElementById('s-agents').textContent = S.agents;
+      // Keep context for this agent conversation
+      S.ctx.push({user:text, agent:d.response});
+      if(S.ctx.length>10) S.ctx.shift();
+    }
+
+  } catch(err) {
+    hideTyping();
+    addMsg('bot','⚠️ Connection error — make sure the server is running on http://localhost:5000');
+    console.error(err);
+  }
+
+  btn.disabled=false; S.busy=false; inp.focus();
 }
+
+/* ── Init: show welcome from All Agents ── */
+window.addEventListener('DOMContentLoaded', ()=>{ switchAgent(0); });
 </script>
 </body>
 </html>"""
